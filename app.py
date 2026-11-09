@@ -16,20 +16,21 @@ USERS = {
 # ---------------------------------------------
 
 llm = None
-model_status = "Descargando modelo ligero en segundo plano..."
+model_status = "Descargando modelo ultra-ligero (0.5B) en segundo plano..."
 
 def load_model():
     global llm, model_status
     try:
+        # Usamos Qwen 2.5 de 0.5B, garantizado para entrar en los 512 MB de Render
         model_path = hf_hub_download(
-            repo_id="Qwen/Qwen2.5-1.5B-Instruct-GGUF",
-            filename="qwen2.5-1.5b-instruct-q4_k_m.gguf"
+            repo_id="Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+            filename="qwen2.5-0.5b-instruct-q4_k_m.gguf"
         )
-        # Optimizaciones extremas de RAM para la capa gratuita de Render (512 MB)
+        # Optimizaciones extremas para evitar OOM (Out of Memory)
         llm = Llama(
             model_path=model_path,
-            n_ctx=512,        # Ventana de contexto reducida para gastar menos memoria
-            n_batch=128,      # Lotes más pequeños para evitar picos de RAM
+            n_ctx=256,        # Contexto mínimo para gastar la menor RAM posible
+            n_batch=64,       # Lotes ultra pequeños
             verbose=False
         )
         model_status = "Listo"
@@ -165,7 +166,7 @@ def chat():
     
     response = llm.create_chat_completion(
         messages=messages,
-        max_tokens=256,
+        max_tokens=150,
         temperature=0.7
     )
     
