@@ -21,14 +21,15 @@ model_status = "Descargando modelo ligero en segundo plano..."
 def load_model():
     global llm, model_status
     try:
-        # Usamos el modelo Qwen 2.5 de 1.5B, mucho más ligero para Render Free Tier
         model_path = hf_hub_download(
             repo_id="Qwen/Qwen2.5-1.5B-Instruct-GGUF",
             filename="qwen2.5-1.5b-instruct-q4_k_m.gguf"
         )
+        # Optimizaciones extremas de RAM para la capa gratuita de Render (512 MB)
         llm = Llama(
             model_path=model_path,
-            n_ctx=2048,
+            n_ctx=512,        # Ventana de contexto reducida para gastar menos memoria
+            n_batch=128,      # Lotes más pequeños para evitar picos de RAM
             verbose=False
         )
         model_status = "Listo"
@@ -86,7 +87,7 @@ CHAT_TEMPLATE = '''
         <h2>Ouroboros (Hola, {{ user }})</h2>
         <a href="/logout" class="logout">Cerrar Sesión</a>
     </div>
-    <div id="chat"><div class="msg bot"><b>Sistema:</b> Servidor iniciado. Estado del modelo ligero: Cargando...</div></div>
+    <div id="chat"><div class="msg bot"><b>Sistema:</b> Servidor iniciado. Estado del modelo: Cargando...</div></div>
     <input type="text" id="userInput" placeholder="Escribe un mensaje..." onkeypress="if(event.key === 'Enter') sendMsg()">
     <button class="send-btn" onclick="sendMsg()">Enviar</button>
 
