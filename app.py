@@ -1,21 +1,32 @@
 import os
+import threading
 from flask import Flask, request, jsonify, render_template_string
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
 
 app = Flask(__name__)
 
-# Descarga automáticamente el modelo Qwen 2.5 3B Q4_K_M
-model_path = hf_hub_download(
-    repo_id="Qwen/Qwen2.5-3B-Instruct-GGUF",
-    filename="qwen2.5-3b-instruct-q4_k_m.gguf"
-)
+llm = None
+model_status = "Descargando modelo en segundo plano..."
 
-llm = Llama(
-    model_path=model_path,
-    n_ctx=2048,
-    verbose=False
-)
+def load_model():
+    global llm, model_status
+    try:
+        model_path = hf_hub_download(
+            repo_id="Qwen/Qwen2.5-3B-Instruct-GGUF",
+            filename="qwen2.5-3b-instruct-q4_k_m.gguf"
+        )
+        llm = Llama(
+            model_path=model_path,
+            n_ctx=2048,
+            verbose=False
+        )
+        model_status = "Listo"
+    except Exception as e:
+        model_status = f"Error: {str(e)}"
+
+# Iniciar la descarga en segundo plano para que Flask abra el puerto de inmediato
+threading.Thread(target=load_model).start()
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
@@ -35,7 +46,7 @@ HTML_TEMPLATE = '''
 </head>
 <body>
     <h2>Ouroboros IA (Nube 24/7)</h2>
-    <div id="chat"></div>
+    <div id="chat"><div class="msg bot"><b>Sistema:</b> Servidor iniciado. Estado del modelo: Cargando... (espera unos minutos si es la primera vez).</div></div>
     <input type="text" id="userInput" placeholder="Escribe un mensaje..." onkeypress="if(event.key === 'Enter') sendMsg()">
     <button onclick="sendMsg()">Enviar</button>
 
@@ -71,6 +82,10 @@ def index():
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    global llm, model_status
+    if llm is None:
+        return jsonify({'response': f'El modelo todavía se está descargando/cargando en la nube. Estado actual: {model_status}'})
+    
     user_prompt = request.json.get('prompt', '')
     messages = [
         {"role": "system", "content": "Eres Ouroboros, una IA asistente personal y amigable."},
@@ -89,4 +104,4 @@ def chat():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-  
+    
